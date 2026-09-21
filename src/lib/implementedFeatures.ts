@@ -22,4 +22,5 @@ export const IMPLEMENTED_FEATURES: ReadonlySet<FeatureId> = new Set<FeatureId>([
   'remote-config',
   'analytics',
   'ab-testing',
+  'error-monitoring',
 ])

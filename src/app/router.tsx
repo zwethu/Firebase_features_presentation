@@ -10,6 +10,7 @@ import { FirestorePage } from '../pages/FirestorePage'
 import { FunctionsPage } from '../pages/FunctionsPage'
 import { NotificationsPage } from '../pages/NotificationsPage'
 import { RealtimeDatabasePage } from '../pages/RealtimeDatabasePage'
+import { ErrorMonitoringPage } from '../pages/ErrorMonitoringPage'
 import { RemoteConfigPage } from '../pages/RemoteConfigPage'
 import { StoragePage } from '../pages/StoragePage'
 import { FeatureComingSoonPage } from '../pages/lab/FeatureComingSoonPage'
@@ -30,6 +31,7 @@ const IMPLEMENTED_FEATURE_PAGES: Partial<Record<FeatureId, ComponentType>> = {
   'remote-config': RemoteConfigPage,
   analytics: AnalyticsPage,
   'ab-testing': AbTestingPage,
+  'error-monitoring': ErrorMonitoringPage,
 }
 
 export function AppRouter() {

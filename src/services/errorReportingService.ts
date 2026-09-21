@@ -36,6 +36,8 @@ export function getRecentErrorReports(): StructuredErrorReport[] {
   return [...reports].slice(-20)
 }
 
+export const CONTROLLED_DEMO_ERROR_MESSAGE = 'Controlled presentation demo error'
+
 export function triggerTestError() {
   throw new Error('StudyFlow AI demo test error — triggered intentionally from /demo-error.')
 }

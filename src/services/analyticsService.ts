@@ -11,6 +11,8 @@ export type AnalyticsEventName =
   | 'demo_function_event_created'
   | 'demo_remote_config_fetched'
   | 'demo_ab_variant_previewed'
+  | 'quiz_cta_clicked'
+  | 'demo_controlled_error_triggered'
   | 'demo_ai_question_asked'
   // Retired StudyFlow AI product events — kept only so orphaned pages that
   // still reference them continue to type-check.
@@ -53,14 +55,15 @@ async function getAnalyticsInstance(): Promise<Analytics | null> {
 export async function logAnalyticsEvent(
   name: AnalyticsEventName,
   params?: Record<string, string | number | boolean>,
-) {
+): Promise<boolean> {
   const instance = await getAnalyticsInstance()
-  if (!instance) return
+  if (!instance) return false
   // `logEvent`'s overloads narrow certain GA4-reserved names (e.g. "login")
   // to specific param shapes; our union of custom + reserved names doesn't
   // distribute over those overloads, so we call through a generic signature.
   const log = logEvent as (analytics: Analytics, eventName: string, params?: Record<string, unknown>) => void
   log(instance, name, params)
+  return true
 }
 
 export async function isAnalyticsAvailable(): Promise<boolean> {

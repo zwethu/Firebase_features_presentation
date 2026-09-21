@@ -72,7 +72,9 @@ export function computeFeatureStatus(id: FeatureId): FeatureStatus {
     case 'analytics':
       return isFirebaseConfigured ? 'live' : 'not-configured'
     case 'error-monitoring':
-      return CRASHLYTICS_WEB_SUPPORTED ? 'live' : 'not-configured'
+      // Crashlytics has no supported web SDK. The implemented demo is React
+      // Error Boundary + local structured logging — never "Live Crashlytics".
+      return CRASHLYTICS_WEB_SUPPORTED ? 'live' : 'demo'
     case 'hosting':
       return isServedFromFirebaseHosting() ? 'live' : 'not-configured'
     case 'updates-2026':

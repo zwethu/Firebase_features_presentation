@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import {
   getAllRemoteConfigValues,
   initRemoteConfig,
@@ -14,18 +14,29 @@ export function useRemoteConfig() {
   })
   const [loading, setLoading] = useState(true)
 
+  const applyResult = useCallback((result: RemoteConfigStatus) => {
+    setStatus(result)
+    setValues(getAllRemoteConfigValues())
+    setLoading(false)
+  }, [])
+
   useEffect(() => {
     let mounted = true
     initRemoteConfig().then((result) => {
       if (!mounted) return
-      setStatus(result)
-      setValues(getAllRemoteConfigValues())
-      setLoading(false)
+      applyResult(result)
     })
     return () => {
       mounted = false
     }
-  }, [])
+  }, [applyResult])
 
-  return { values, status, loading }
+  const refetch = useCallback(async () => {
+    setLoading(true)
+    const result = await initRemoteConfig()
+    applyResult(result)
+    return result
+  }, [applyResult])
+
+  return { values, status, loading, refetch }
 }
