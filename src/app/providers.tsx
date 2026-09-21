@@ -2,6 +2,7 @@ import type { ReactNode } from 'react'
 import { BrowserRouter } from 'react-router-dom'
 import { AuthProvider } from './AuthContext'
 import { DemoProvider } from './DemoContext'
+import { DemoIdentityProvider } from './DemoIdentityContext'
 import { ErrorBoundary } from '../components/ErrorBoundary'
 
 export function AppProviders({ children }: { children: ReactNode }) {
@@ -9,7 +10,9 @@ export function AppProviders({ children }: { children: ReactNode }) {
     <ErrorBoundary>
       <BrowserRouter>
         <DemoProvider>
-          <AuthProvider>{children}</AuthProvider>
+          <AuthProvider>
+            <DemoIdentityProvider>{children}</DemoIdentityProvider>
+          </AuthProvider>
         </DemoProvider>
       </BrowserRouter>
     </ErrorBoundary>

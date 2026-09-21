@@ -1,33 +1,31 @@
 rules_version = '2';
 
-// StudyFlow AI Firestore Security Rules
+// Firebase Feature Lab — Firestore Security Rules
 //
-// Assumptions documented here (see README.md "Security warnings and known
-// limitations" for the full write-up):
+// Default-deny posture: every collection below is explicitly matched with
+// its own narrow rules, and the final `match /{document=**}` block denies
+// anything not explicitly listed above it. There is no public read/write
+// access anywhere in this file, and no test-mode expiry clause.
 //
-// 1. Admin access is simplified for the demo: it is granted via
-//    `users/{uid}.role == "admin"`, a Firestore field the user themself
-//    cannot write (see the `users` rules below — only the `role` field on
-//    someone ELSE's document is writable by an admin; every user can only
-//    create/update their own document and can never change their own
-//    `role`). For a real production deployment, prefer a Firebase
-//    Authentication CUSTOM CLAIM (`request.auth.token.admin == true`) set
-//    via the Admin SDK, since a custom claim can't be altered by a client
-//    write in any way. This demo simplification is called out explicitly
-//    so it is never mistaken for a production-ready pattern.
-// 2. Cloud Functions (Admin SDK) bypass these rules entirely — the
-//    `onSubmissionCreated` / `onAnnouncementCreated` triggers always have
-//    full access regardless of what's written below.
-// 3. Every collection requires `request.auth != null` at minimum; there is
-//    no public/test-mode access anywhere in this file.
+// Recovery note: this file replaces a default Firebase-console test-mode
+// ruleset (`allow read, write: if request.time < timestamp.date(...)`)
+// that had overwritten the project's real rules. The original secure
+// ruleset (for the retired role-gated "StudyFlow AI" product) was recovered
+// from git history (`git show HEAD:firestore.rules`) and used as the
+// pattern reference for this rewrite, which targets the current Firebase
+// Feature Lab collections instead.
+//
+// Cloud Functions using the Admin SDK bypass these rules entirely — that is
+// expected and is how `functionDemoResults` documents get written.
 
 service cloud.firestore {
   match /databases/{database}/documents {
 
     // Helper functions live inside this match block (not at file scope) so
     // that `database` — bound by the `{database}` wildcard above — is in
-    // scope for the `get()` calls below. Declaring them at file scope would
-    // leave `database` unbound inside `get(/databases/$(database)/...)`.
+    // scope for the `get()` calls below. Declaring them at file scope
+    // leaves `database` unbound inside `get(/databases/$(database)/...)`,
+    // which silently denies every request that depends on it.
     function isSignedIn() {
       return request.auth != null;
     }
@@ -36,110 +34,136 @@ service cloud.firestore {
       return isSignedIn() && request.auth.uid == uid;
     }
 
-    // Deliberately avoids a ternary around get() — the rules emulator (as
-    // of firebase-tools 15.x) throws "ternary operator predicate is always
-    // boolean" for that shape. isSignedIn() is checked first via `&&`
-    // short-circuiting instead, which is both emulator-safe and cheaper
-    // (no extra Firestore read for anonymous/signed-out requests).
-    function hasRole(role) {
-      return isSignedIn() &&
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == role;
-    }
-
-    function isAdmin() {
-      return hasRole('admin');
-    }
-
-    function isTeacherOf(courseId) {
-      return isSignedIn() &&
-        get(/databases/$(database)/documents/courses/$(courseId)).data.teacherId == request.auth.uid;
-    }
-
-    function isStudentOf(courseId) {
-      return isSignedIn() &&
-        request.auth.uid in get(/databases/$(database)/documents/courses/$(courseId)).data.studentIds;
-    }
-
-    // users/{uid} — everyone can read their own profile; teachers/admins
-    // may need to read a student's display name, so reads are allowed to
-    // any signed-in user (display name/photo are not sensitive) but writes
-    // are locked to the owner, and the owner can never change their own
-    // `role` (that would be self-granted privilege escalation).
+    // ---------------------------------------------------------------------
+    // users/{uid}
+    //
+    // Feature Lab has no roles or role-gated pages. A user may read and
+    // write only their own profile document, and a `role` key is rejected
+    // outright on create AND update — there is nothing a client can ever
+    // do to grant itself elevated access through this document. If a real
+    // admin/presenter distinction is needed later, use a Firebase
+    // Authentication custom claim (set server-side via the Admin SDK,
+    // checked with `request.auth.token.<claim>`), never a Firestore field.
+    // ---------------------------------------------------------------------
     match /users/{uid} {
-      allow read: if isSignedIn();
-      allow create: if isSelf(uid) && request.resource.data.role == 'student';
-      allow update: if isSelf(uid) && request.resource.data.role == resource.data.role;
-      allow update: if isAdmin();
+      allow read: if isSelf(uid);
+      allow create: if isSelf(uid) && !('role' in request.resource.data);
+      allow update: if isSelf(uid) && !('role' in request.resource.data);
       allow delete: if false;
     }
 
-    // courses/{courseId}
-    match /courses/{courseId} {
-      allow read: if isSignedIn() && (
-        isAdmin() ||
-        resource.data.teacherId == request.auth.uid ||
-        request.auth.uid in resource.data.studentIds
-      );
-      allow create: if hasRole('teacher') || isAdmin();
-      allow update, delete: if isSignedIn() && (resource.data.teacherId == request.auth.uid || isAdmin());
-    }
-
-    // assignments/{assignmentId}
-    match /assignments/{assignmentId} {
-      allow read: if isSignedIn() && (
-        isAdmin() || isTeacherOf(resource.data.courseId) || isStudentOf(resource.data.courseId)
-      );
-      allow create: if isSignedIn() && (isTeacherOf(request.resource.data.courseId) || isAdmin());
-      allow update, delete: if isSignedIn() && (isTeacherOf(resource.data.courseId) || isAdmin());
-    }
-
-    // submissions/{submissionId}
-    match /submissions/{submissionId} {
-      allow read: if isSignedIn() && (
-        isAdmin() || resource.data.studentId == request.auth.uid || isTeacherOf(resource.data.courseId)
-      );
-      allow create: if isSignedIn() &&
-        request.resource.data.studentId == request.auth.uid &&
-        isStudentOf(request.resource.data.courseId);
-      // Submissions are immutable once created — status changes for a real
-      // grading workflow are out of scope for this demo.
-      allow update, delete: if false;
-    }
-
-    // announcements/{announcementId}
-    match /announcements/{announcementId} {
-      allow read: if isSignedIn() && (
-        isAdmin() || isTeacherOf(resource.data.courseId) || isStudentOf(resource.data.courseId)
-      );
-      allow create: if isSignedIn() &&
-        request.resource.data.createdBy == request.auth.uid &&
-        isTeacherOf(request.resource.data.courseId);
-      allow update, delete: if isSignedIn() && (isTeacherOf(resource.data.courseId) || isAdmin());
-    }
-
-    // notifications/{notificationId} — a user may only read/update their
-    // own notifications, and may only ever flip `read` to true.
-    match /notifications/{notificationId} {
-      allow read: if isSignedIn() && resource.data.recipientId == request.auth.uid;
-      allow update: if isSignedIn() &&
-        resource.data.recipientId == request.auth.uid &&
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read']);
-      // Client writes are otherwise disallowed — notifications are created
-      // by Cloud Functions (Admin SDK, which bypasses these rules).
-      allow create, delete: if false;
-    }
-
-    // aiChats/{chatId} — minimal demo chat history, owner-only.
-    match /aiChats/{chatId} {
-      allow read: if isSignedIn() && resource.data.userId == request.auth.uid;
-      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
-      allow update, delete: if false;
-    }
-
-    // courseSummaries/{courseId} — written only by Cloud Functions.
-    match /courseSummaries/{courseId} {
+    // ---------------------------------------------------------------------
+    // demoNotes/{noteId} — /firestore real-time shared notes demo
+    // ---------------------------------------------------------------------
+    match /demoNotes/{noteId} {
       allow read: if isSignedIn();
-      allow write: if false;
+
+      allow create: if isSignedIn()
+        && request.resource.data.authorId == request.auth.uid
+        && request.resource.data.text is string
+        && request.resource.data.text.size() > 0
+        && request.resource.data.text.size() <= 280
+        && request.resource.data.keys().hasOnly(['authorId', 'authorName', 'text', 'createdAt']);
+
+      // Editing is allowed only by the original author, only onto another
+      // valid note body, and the author can never be reassigned.
+      allow update: if isSignedIn()
+        && resource.data.authorId == request.auth.uid
+        && request.resource.data.authorId == resource.data.authorId
+        && request.resource.data.text is string
+        && request.resource.data.text.size() > 0
+        && request.resource.data.text.size() <= 280;
+
+      allow delete: if isSignedIn() && resource.data.authorId == request.auth.uid;
+    }
+
+    // ---------------------------------------------------------------------
+    // demoUploadMetadata/{uploadId} — /storage upload demo metadata
+    // ---------------------------------------------------------------------
+    match /demoUploadMetadata/{uploadId} {
+      allow read: if isSignedIn() && resource.data.ownerId == request.auth.uid;
+
+      allow create: if isSignedIn()
+        && request.resource.data.ownerId == request.auth.uid
+        && request.resource.data.fileName is string
+        && request.resource.data.storagePath is string
+        && request.resource.data.contentType in ['application/pdf', 'image/png', 'image/jpeg']
+        && request.resource.data.sizeBytes is number
+        && request.resource.data.sizeBytes > 0
+        && request.resource.data.sizeBytes <= 10 * 1024 * 1024;
+
+      allow update: if false;
+      allow delete: if isSignedIn() && resource.data.ownerId == request.auth.uid;
+    }
+
+    // ---------------------------------------------------------------------
+    // functionDemos/{eventId} — /functions demo trigger events
+    // ---------------------------------------------------------------------
+    match /functionDemos/{eventId} {
+      allow read: if isSignedIn() && resource.data.createdBy == request.auth.uid;
+      allow create: if isSignedIn() && request.resource.data.createdBy == request.auth.uid;
+      // Immutable once created — the Cloud Function reacts to creation only.
+      allow update, delete: if false;
+    }
+
+    // ---------------------------------------------------------------------
+    // functionDemoResults/{resultId} — written only by the Cloud Function
+    // (Admin SDK, bypasses these rules). Clients may only read a result
+    // that is linked back to an event they created.
+    // ---------------------------------------------------------------------
+    match /functionDemoResults/{resultId} {
+      allow read: if isSignedIn() &&
+        get(/databases/$(database)/documents/functionDemos/$(resource.data.sourceEventId)).data.createdBy
+          == request.auth.uid;
+      allow create, update, delete: if false;
+    }
+
+    // ---------------------------------------------------------------------
+    // demoNotifications/{notificationId} — /notifications demo
+    //
+    // A client may only ever create a notification addressed to itself
+    // (the explicitly-labelled "notify me" demo action) — never to another
+    // uid. Cloud Functions (Admin SDK) create notifications for other
+    // recipients, bypassing these rules as expected.
+    // ---------------------------------------------------------------------
+    match /demoNotifications/{notificationId} {
+      allow read: if isSignedIn() && resource.data.recipientId == request.auth.uid;
+
+      allow create: if isSignedIn()
+        && request.resource.data.recipientId == request.auth.uid
+        && request.resource.data.read == false;
+
+      allow update: if isSignedIn()
+        && resource.data.recipientId == request.auth.uid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read']);
+
+      allow delete: if false;
+    }
+
+    // ---------------------------------------------------------------------
+    // demoAiChats/{chatId} — /ai-logic optional chat history
+    // ---------------------------------------------------------------------
+    match /demoAiChats/{chatId} {
+      allow read: if isSignedIn() && resource.data.userId == request.auth.uid;
+
+      allow create: if isSignedIn()
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.prompt is string
+        && request.resource.data.prompt.size() > 0
+        && request.resource.data.prompt.size() <= 800
+        && request.resource.data.response is string;
+
+      allow update: if false;
+      allow delete: if isSignedIn() && resource.data.userId == request.auth.uid;
+    }
+
+    // ---------------------------------------------------------------------
+    // Default deny. Any collection not explicitly matched above (including
+    // the retired courses/assignments/submissions/announcements/aiChats
+    // collections from the old product) is completely inaccessible.
+    // ---------------------------------------------------------------------
+    match /{document=**} {
+      allow read, write: if false;
     }
   }
 }

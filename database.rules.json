@@ -1,5 +1,14 @@
 {
   "rules": {
+    "featureLab": {
+      "reactions": {
+        "firebase": {
+          ".read": "auth != null",
+          ".write": "auth != null",
+          ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 1000000"
+        }
+      }
+    },
     "presence": {
       ".read": "auth != null",
       "$uid": {

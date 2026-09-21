@@ -2,7 +2,17 @@ import { type Analytics, isSupported, getAnalytics, logEvent } from 'firebase/an
 import { app, isFirebaseConfigured } from './firebase'
 
 export type AnalyticsEventName =
+  // Feature Lab events (current product).
   | 'login'
+  | 'demo_identity_selected'
+  | 'demo_firestore_note_created'
+  | 'demo_storage_upload_completed'
+  | 'demo_realtime_reaction_added'
+  | 'demo_function_event_created'
+  | 'demo_remote_config_fetched'
+  | 'demo_ai_question_asked'
+  // Retired StudyFlow AI product events — kept only so orphaned pages that
+  // still reference them continue to type-check.
   | 'course_opened'
   | 'assignment_upload_started'
   | 'assignment_uploaded'

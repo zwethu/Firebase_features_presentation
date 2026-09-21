@@ -35,10 +35,14 @@ export function computeFeatureStatus(id: FeatureId): FeatureStatus {
     case 'authentication':
     case 'firestore':
     case 'storage':
+      // Each of these has a genuine, clearly-labelled local fallback demo
+      // when Firebase isn't configured — never "not configured" once a
+      // real interactive simulation exists to show instead.
+      return isFirebaseConfigured ? 'live' : 'demo'
     case 'notifications':
       return isFirebaseConfigured ? 'live' : 'not-configured'
     case 'realtime-database':
-      return isFirebaseConfigured && Boolean(firebaseConfig.databaseURL) ? 'live' : 'optional'
+      return isFirebaseConfigured && Boolean(firebaseConfig.databaseURL) ? 'live' : 'demo'
     case 'functions':
       // Deployment can't be verified client-side without calling a
       // function; each attempt on the Functions page refines this further.

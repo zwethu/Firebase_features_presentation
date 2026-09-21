@@ -6,7 +6,14 @@ export interface UserProfile {
   uid: string
   displayName: string
   email: string
-  role: UserRole
+  /**
+   * Legacy field from the retired role-gated product. Firebase Feature Lab
+   * no longer assigns or reads roles — new profiles never set this, and
+   * Firestore Rules reject any client write that includes a `role` key at
+   * all. Kept optional only so pre-existing documents/orphaned pages still
+   * type-check; do not use it for authorization decisions.
+   */
+  role?: UserRole
   photoURL: string | null
   createdAt: Timestamp | null
 }

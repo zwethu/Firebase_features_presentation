@@ -1,36 +1,31 @@
 rules_version = '2';
 
-// StudyFlow AI Cloud Storage Security Rules
+// Firebase Feature Lab — Cloud Storage Security Rules
 //
-// Path layout: assignments/{uid}/{assignmentId}/{fileName}
+// Default-deny posture: only the /storage demo's upload path is matched
+// below; the trailing catch-all denies everything else, including the old
+// StudyFlow AI `assignments/{uid}/{assignmentId}/{fileName}` path from the
+// retired product.
 //
-// Known limitation (documented per the build spec): Storage Rules cannot
-// perform arbitrary Firestore JOINs — but rules_version '2' *does* expose
-// `firestore.get()` / `firestore.exists()` for simple point-reads. We use
-// that to let a course's teacher read a student's submitted PDF, at the
-// cost of two extra Firestore reads per Storage request (one for the
-// assignment's courseId, one for the course's teacherId). That's an
-// acceptable demo-scale tradeoff; a production system should instead mirror
-// `courseId`/`teacherId` into custom metadata on the object at upload time
-// so authorization is a single cheap read, or move file access behind a
-// callable Cloud Function that already has the join done via Firestore.
+// Path layout: feature-lab/{uid}/uploads/{fileName}
 
 service firebase.storage {
   match /b/{bucket}/o {
 
-    match /assignments/{uid}/{assignmentId}/{fileName} {
-      allow read: if request.auth != null && (
-        request.auth.uid == uid ||
-        request.auth.uid ==
-          firestore.get(/databases/(default)/documents/courses/
-            $(firestore.get(/databases/(default)/documents/assignments/$(assignmentId)).data.courseId)
-          ).data.teacherId
-      );
+    match /feature-lab/{uid}/uploads/{fileName} {
+      // Owner-only read for this demo — a presenter showing "your own
+      // upload" is enough; there is no cross-user file sharing feature.
+      allow read: if request.auth != null && request.auth.uid == uid;
 
-      allow write: if request.auth != null &&
-        request.auth.uid == uid &&
-        request.resource.contentType == 'application/pdf' &&
-        request.resource.size <= 10 * 1024 * 1024;
+      allow write: if request.auth != null
+        && request.auth.uid == uid
+        && request.resource.contentType in ['application/pdf', 'image/png', 'image/jpeg']
+        && request.resource.size <= 10 * 1024 * 1024
+        // The {fileName} wildcard already matches exactly one path segment
+        // (it structurally cannot contain "/", so traversal via "../" is
+        // not possible here), but this still guards against control
+        // characters or unexpected names slipping into the object path.
+        && fileName.matches('^[A-Za-z0-9][A-Za-z0-9._-]{0,119}$');
     }
 
     // Everything else is closed by default — never leave Storage in

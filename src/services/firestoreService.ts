@@ -25,7 +25,6 @@ import type {
   Course,
   Submission,
   UserProfile,
-  UserRole,
 } from '../types/models'
 
 function requireDb() {
@@ -43,17 +42,18 @@ function withId<T>(snap: QueryDocumentSnapshot<DocumentData>): T {
 // users/{uid}
 // ---------------------------------------------------------------------------
 
-export async function ensureUserProfile(user: User, defaultRole: UserRole = 'student') {
+export async function ensureUserProfile(user: User) {
   const database = requireDb()
   const ref = doc(database, 'users', user.uid)
   const existing = await getDoc(ref)
   if (existing.exists()) {
     return
   }
+  // Deliberately never writes a `role` field — Firestore Rules reject any
+  // client write to users/{uid} that includes one at all (see firestore.rules).
   await setDoc(ref, {
-    displayName: user.displayName ?? user.email?.split('@')[0] ?? 'Student',
+    displayName: user.displayName ?? user.email?.split('@')[0] ?? 'Demo User',
     email: user.email ?? '',
-    role: defaultRole,
     photoURL: user.photoURL ?? null,
     createdAt: serverTimestamp(),
   })
