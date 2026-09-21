@@ -1,0 +1,42 @@
+rules_version = '2';
+
+// StudyFlow AI Cloud Storage Security Rules
+//
+// Path layout: assignments/{uid}/{assignmentId}/{fileName}
+//
+// Known limitation (documented per the build spec): Storage Rules cannot
+// perform arbitrary Firestore JOINs — but rules_version '2' *does* expose
+// `firestore.get()` / `firestore.exists()` for simple point-reads. We use
+// that to let a course's teacher read a student's submitted PDF, at the
+// cost of two extra Firestore reads per Storage request (one for the
+// assignment's courseId, one for the course's teacherId). That's an
+// acceptable demo-scale tradeoff; a production system should instead mirror
+// `courseId`/`teacherId` into custom metadata on the object at upload time
+// so authorization is a single cheap read, or move file access behind a
+// callable Cloud Function that already has the join done via Firestore.
+
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    match /assignments/{uid}/{assignmentId}/{fileName} {
+      allow read: if request.auth != null && (
+        request.auth.uid == uid ||
+        request.auth.uid ==
+          firestore.get(/databases/(default)/documents/courses/
+            $(firestore.get(/databases/(default)/documents/assignments/$(assignmentId)).data.courseId)
+          ).data.teacherId
+      );
+
+      allow write: if request.auth != null &&
+        request.auth.uid == uid &&
+        request.resource.contentType == 'application/pdf' &&
+        request.resource.size <= 10 * 1024 * 1024;
+    }
+
+    // Everything else is closed by default — never leave Storage in
+    // public test mode.
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}
