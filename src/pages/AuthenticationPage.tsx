@@ -11,7 +11,7 @@ import { Button } from '../components/ui/Button'
 import { FieldError, Input, Label } from '../components/ui/Field'
 import { useDemoResults } from '../hooks/useDemoResults'
 import { logAnalyticsEvent } from '../services/analyticsService'
-import { signInWithEmail, signInWithGoogle, signOutUser } from '../services/authService'
+import { registerWithEmail, signInWithEmail, signInWithGoogle, signOutUser } from '../services/authService'
 import { getFeature } from '../lib/features'
 import { computeFeatureStatus } from '../lib/featureStatus'
 import { logDemoEvent } from '../lib/eventLog'
@@ -55,9 +55,9 @@ export function AuthenticationPage() {
 
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [mode, setMode] = useState<'sign-in' | 'register'>('sign-in')
   const [error, setError] = useState<string | null>(null)
-  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isSigningIn, setIsSigningIn] = useState(false)
+  const [isRegistering, setIsRegistering] = useState(false)
   const [isGoogleSubmitting, setIsGoogleSubmitting] = useState(false)
 
   const status = computeFeatureStatus('authentication')
@@ -82,7 +82,7 @@ export function AuthenticationPage() {
   async function handleEmailSubmit(event: FormEvent) {
     event.preventDefault()
     setError(null)
-    setIsSubmitting(true)
+    setIsSigningIn(true)
     try {
       await signInWithEmail(email, password)
       logAnalyticsEvent('login', { method: 'password' })
@@ -93,7 +93,24 @@ export function AuthenticationPage() {
       setError(message)
       pushResult(message, 'error')
     } finally {
-      setIsSubmitting(false)
+      setIsSigningIn(false)
+    }
+  }
+
+  async function handleRegister() {
+    setError(null)
+    setIsRegistering(true)
+    try {
+      await registerWithEmail(email, password)
+      logAnalyticsEvent('login', { method: 'password-register' })
+      logDemoEvent('authentication', 'Registered a new account')
+      pushResult('Account created and signed in.', 'success')
+    } catch (err) {
+      const message = describeAuthError(err)
+      setError(message)
+      pushResult(message, 'error')
+    } finally {
+      setIsRegistering(false)
     }
   }
 
@@ -206,15 +223,21 @@ export function AuthenticationPage() {
                   </div>
                   <FieldError>{error}</FieldError>
                   <div className="flex gap-2">
-                    <Button type="submit" className="flex-1" isLoading={isSubmitting} onClick={() => setMode('sign-in')}>
+                    <Button
+                      type="submit"
+                      className="flex-1"
+                      isLoading={isSigningIn}
+                      disabled={isRegistering}
+                    >
                       Sign in
                     </Button>
                     <Button
-                      type="submit"
+                      type="button"
                       variant="secondary"
                       className="flex-1"
-                      isLoading={isSubmitting && mode === 'register'}
-                      onClick={() => setMode('register')}
+                      isLoading={isRegistering}
+                      disabled={isSigningIn}
+                      onClick={handleRegister}
                     >
                       Register
                     </Button>

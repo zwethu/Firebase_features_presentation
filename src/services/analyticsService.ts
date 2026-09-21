@@ -10,6 +10,7 @@ export type AnalyticsEventName =
   | 'demo_realtime_reaction_added'
   | 'demo_function_event_created'
   | 'demo_remote_config_fetched'
+  | 'demo_ab_variant_previewed'
   | 'demo_ai_question_asked'
   // Retired StudyFlow AI product events — kept only so orphaned pages that
   // still reference them continue to type-check.

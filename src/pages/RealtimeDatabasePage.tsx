@@ -162,7 +162,9 @@ export function RealtimeDatabasePage() {
               </Badge>
               {realtimeDatabaseConfigured && (
                 <Badge tone={connected ? 'success' : 'neutral'}>
-                  {connected === null ? (
+                  {blockedPendingSignIn ? (
+                    'Sign in to check connection'
+                  ) : connected === null ? (
                     'Checking connection…'
                   ) : connected ? (
                     <span className="flex items-center gap-1">

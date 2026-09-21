@@ -20,6 +20,7 @@ const TRACKED_EVENTS: { name: string; description: string }[] = [
   { name: 'demo_realtime_reaction_added', description: 'Fired on each reaction (/realtime-database)' },
   { name: 'demo_function_event_created', description: 'Fired when a demo event is created (/functions)' },
   { name: 'demo_remote_config_fetched', description: 'Fired on a Remote Config refetch (/remote-config)' },
+  { name: 'demo_ab_variant_previewed', description: 'Fired when previewing a variant (/ab-testing)' },
   { name: 'demo_ai_question_asked', description: 'Fired when a question is asked (/ai-logic) — no prompt text included' },
 ]
 

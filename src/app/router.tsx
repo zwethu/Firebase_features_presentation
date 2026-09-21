@@ -3,6 +3,7 @@ import { Route, Routes } from 'react-router-dom'
 import { AppLayout } from '../components/layout/AppLayout'
 import { OverviewPage } from '../pages/OverviewPage'
 import { NotFoundPage } from '../pages/NotFoundPage'
+import { AbTestingPage } from '../pages/AbTestingPage'
 import { AnalyticsPage } from '../pages/AnalyticsPage'
 import { AuthenticationPage } from '../pages/AuthenticationPage'
 import { FirestorePage } from '../pages/FirestorePage'
@@ -28,6 +29,7 @@ const IMPLEMENTED_FEATURE_PAGES: Partial<Record<FeatureId, ComponentType>> = {
   notifications: NotificationsPage,
   'remote-config': RemoteConfigPage,
   analytics: AnalyticsPage,
+  'ab-testing': AbTestingPage,
 }
 
 export function AppRouter() {

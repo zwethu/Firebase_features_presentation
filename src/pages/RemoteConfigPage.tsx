@@ -10,15 +10,11 @@ import { useRemoteConfig } from '../hooks/useRemoteConfig'
 import { logDemoEvent } from '../lib/eventLog'
 import { getFeature } from '../lib/features'
 import type { FeatureStatus } from '../lib/featureStatus'
+import { QUIZ_CTA_LABEL } from '../lib/quizCta'
 import { REMOTE_CONFIG_DEFAULTS, initRemoteConfig } from '../services/remoteConfigService'
 import { logAnalyticsEvent } from '../services/analyticsService'
 
 const feature = getFeature('remote-config')
-
-const CTA_LABEL: Record<'A' | 'B', string> = {
-  A: 'Start Quiz',
-  B: 'Start Your 5-Minute Quiz →',
-}
 
 export function RemoteConfigPage() {
   const { values, status, loading } = useRemoteConfig()
@@ -129,7 +125,7 @@ export function RemoteConfigPage() {
 
           <div className="rounded-lg border border-slate-200 p-4 text-center">
             <p className="mb-2 text-xs text-slate-500">Live-driven quiz CTA:</p>
-            <Button size="lg">{CTA_LABEL[effectiveVariant]}</Button>
+            <Button size="lg">{QUIZ_CTA_LABEL[effectiveVariant]}</Button>
             <p className="mt-2 text-xs text-slate-400">Currently showing Variant {effectiveVariant}</p>
           </div>
 

@@ -3,6 +3,7 @@ import { isAiConfigured } from '../services/aiService'
 import { CRASHLYTICS_WEB_SUPPORTED } from '../services/errorReportingService'
 import { firebaseConfig, isFirebaseConfigured } from '../services/firebase'
 import type { FeatureId } from './features'
+import { IMPLEMENTED_FEATURES } from './implementedFeatures'
 
 export type FeatureStatus = 'live' | 'demo' | 'optional' | 'not-configured'
 
@@ -31,6 +32,13 @@ export function isServedFromFirebaseHosting(): boolean {
  * this further on their own page rather than here.
  */
 export function computeFeatureStatus(id: FeatureId): FeatureStatus {
+  // A feature with no real demo yet is always "Not Configured" from the
+  // outside — regardless of whether the underlying Firebase product
+  // happens to be configured — so the Overview grid and sidebar never
+  // claim a page is live when clicking into it only shows the honest
+  // "not migrated yet" placeholder.
+  if (!IMPLEMENTED_FEATURES.has(id)) return 'not-configured'
+
   switch (id) {
     case 'authentication':
     case 'firestore':

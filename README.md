@@ -1,73 +1,74 @@
-# StudyFlow AI
+# Firebase Feature Lab
 
-A small, presentation-ready learning platform built to demonstrate Firebase
-products working together for **Firebase: Core Features and 2026 Platform
-Update**. It is intentionally small — the goal is a reliable live demo, not
-a full LMS.
+Interactive Firebase demos for web applications — built for the "Firebase:
+Core Features and 2026 Platform Update" presentation. Each Firebase product
+gets its own page with exactly four sections (What it is / Interactive demo
+/ How it works / Practical use cases), a truthful status badge, an
+architecture diagram, and a live event/result panel — so a presenter can
+open any page independently, explain it, run one small demo, and move on.
 
-## 1. Project overview and presentation purpose
+## 1. Status system — read this first
 
-StudyFlow AI walks through one connected user journey:
+Every feature page shows one of four labels, and the app is built so these
+can never lie:
 
-```text
-Open deployed web app → Sign in → View learning dashboard
-  → Ask AI Study Assistant → Upload assignment
-  → Cloud Function automates teacher notification
-  → Teacher creates announcement → Student sees in-app notification
-  → Admin demonstrates Remote Config UI change
-  → Explain Analytics, Crashlytics, security, A/B Testing, and Hosting
-```
-
-Every screen in the app is built to make the Firebase product behind it easy
-to point to and explain during a live talk.
-
-## 2. Features mapped to Firebase services
-
-| Feature | Firebase product |
+| Label | Meaning |
 |---|---|
-| Sign-in (Google + email/password) | Firebase Authentication |
-| Courses, assignments, submissions, announcements, notifications, AI chat history | Cloud Firestore |
-| "Students online" card | Realtime Database (optional) |
-| Assignment PDF upload | Cloud Storage |
-| Teacher/student notification automation | Cloud Functions (2nd gen) |
-| AI Study Assistant | Firebase AI Logic + Gemini |
-| Backend/AI request verification | App Check |
-| Event logging (`login`, `quiz_started`, …) | Google Analytics |
-| Error capture | React Error Boundary + structured logger (Crashlytics fallback — see §13) |
-| Quiz CTA variant, upload size limit, maintenance message | Remote Config |
-| Quiz page comparison card | A/B Testing (demo/sample values) |
-| Optional push notifications | Firebase Cloud Messaging |
-| Production hosting | Firebase Hosting |
+| **Live Firebase Integration** | Real Firebase SDK calls against your actual project |
+| **Demo Data / Simulation** | A genuine interactive fallback (localStorage + BroadcastChannel), clearly not touching Firebase |
+| **Optional Setup Required** | The product is optional/unverifiable from the client (e.g. Cloud Functions deployment) |
+| **Not Configured** | Neither a live integration nor a demo is available yet |
 
-Full breakdown also available in-app at `/about-firebase`.
+A page whose interactive demo hasn't been built yet always renders the
+shared placeholder (`FeatureComingSoonPage`) and always reports **Not
+Configured** — the status shown on the Overview grid and the sidebar comes
+from the exact same `computeFeatureStatus()` function the page itself uses
+(see `src/lib/featureStatus.ts` + `src/lib/implementedFeatures.ts`), so the
+grid can never claim a feature is "live" while the page underneath is just
+a placeholder.
 
-## 3. Architecture diagram
+## 2. Which pages are real vs. placeholder
+
+| Route | Status | What's real |
+|---|---|---|
+| `/authentication` | ✅ Implemented | Google + email/password sign-in, registration, sign-out, local demo-identity fallback |
+| `/firestore` | ✅ Implemented | Real-time shared notes (`demoNotes`), localStorage+BroadcastChannel fallback |
+| `/storage` | ✅ Implemented | PDF/PNG/JPEG upload with progress, `demoUploadMetadata`, simulated-upload fallback |
+| `/realtime-database` | ✅ Implemented | Live reaction counter, transaction increment, local fallback |
+| `/functions` | ✅ Implemented | Real Firestore-triggered Cloud Function (`onFunctionDemoCreated`), honest timeout if not deployed |
+| `/notifications` | ✅ Implemented | Real-time `demoNotifications` list, self-serve send, mark-as-read, optional FCM opt-in |
+| `/remote-config` | ✅ Implemented | Real `fetchAndActivate`, local A/B override fallback |
+| `/analytics` | ✅ Implemented | Local cross-page event stream (see `src/lib/eventLog.ts`), Analytics SDK availability check |
+| `/ab-testing` | ✅ Implemented | Explains Remote Config + Analytics → A/B Testing; sample completion-rate comparison; demo-mode-only local variant preview (never writes to Remote Config) |
+| `/ai-logic` | ⏳ Placeholder | Not built yet |
+| `/app-check` | ⏳ Placeholder | Not built yet |
+| `/error-monitoring` | ⏳ Placeholder | Not built yet |
+| `/hosting` | ⏳ Placeholder | Not built yet |
+| `/updates-2026` | ⏳ Placeholder | Not built yet |
+
+## 3. Architecture
 
 ```mermaid
 flowchart TD
-    A[StudyFlow AI React Web App] --> B[Firebase Authentication]
+    A[Firebase Feature Lab — React + TypeScript + Vite] --> B[Firebase Authentication]
     A --> C[Cloud Firestore]
     A --> D[Cloud Storage]
-    A --> E[Realtime Database Presence]
+    A --> E[Realtime Database]
     C --> F[Cloud Functions]
-    D --> F
-    F --> G[In-App Notifications]
-    F --> H[Optional FCM Push Notifications]
-    A --> I[Firebase AI Logic + Gemini]
-    A --> J[Remote Config]
-    A --> K[Google Analytics]
-    A --> L[Crashlytics / Error Monitoring]
-    A --> M[Firebase Hosting]
-    N[App Check + Security Rules] --> B
+    F --> G[demoNotifications]
+    A --> H[Remote Config]
+    A --> I[Google Analytics + local event stream]
+    N[Security Rules] --> B
     N --> C
     N --> D
-    N --> F
-    N --> I
+    N --> E
 ```
 
-## 4. Local setup
+Tech stack: React 19 + TypeScript (strict), Vite, Tailwind CSS v4, React
+Router 7, Firebase Web SDK (modular API), Cloud Functions v2 (TypeScript),
+vitest + `@firebase/rules-unit-testing` for rules tests.
 
-Requires Node.js 20+ and npm.
+## 4. Local setup
 
 ```bash
 cd studyflow-ai
@@ -76,238 +77,145 @@ cp .env.example .env.local   # fill in your Firebase web config
 npm run dev
 ```
 
-The app runs fully even with an empty `.env.local` — every page shows a
-clear "Firebase is not configured" banner and empty states instead of
-crashing, so you can preview the UI before a project exists.
+The app runs fully even with a blank `.env.local` — every page falls back
+to its labelled local simulation instead of crashing.
 
-## 5. Firebase Console setup checklist
+## 5. Environment variables
 
-1. **Create the project.** Create a Firebase project (e.g. `studyflow-ai`),
-   add a Web app, and copy its config into `.env.local`.
-2. **Authentication.** Enable the Google and Email/Password providers.
-   Create (or sign in once to create) three users that will become your
-   Student, Teacher, and Admin demo accounts.
-3. **Firestore.** Create a database in Native mode, in a region close to
-   your presentation location. Deploy `firestore.rules` before demoing —
-   never leave it in test mode.
-4. **Storage.** Enable the default bucket, then deploy `storage.rules`.
-5. **Realtime Database** (optional — only if you want the "students online"
-   card). Create the database and deploy `database.rules.json`.
-6. **Cloud Functions.** Requires the Blaze (pay-as-you-go) plan. Deploy from
-   `functions/` (see §10).
-7. **Firebase AI Logic.** Enable it for your project via the Firebase
-   Console's "AI Logic" section (Gemini Developer API backend). No extra
-   frontend API key is needed — StudyFlow AI calls it through the Firebase
-   Web SDK (`firebase/ai`), scoped by the signed-in user and App Check.
-8. **App Check.** Register a reCAPTCHA v3 site key, put it in
-   `VITE_APP_CHECK_SITE_KEY`, and register your app's debug token for local
-   development (see §13).
-9. **Remote Config.** Create the four parameters listed in §12.
-10. **Analytics.** Confirm it's enabled for the project (usually on by
-    default for new projects).
-11. **Hosting.** See §11.
+See `.env.example`. The 7 core `VITE_FIREBASE_*` keys plus
+`VITE_FIREBASE_DATABASE_URL` (only needed for the Realtime Database demo)
+control whether each page runs live or in simulation. None of these are
+secrets — they identify the project, not grant access — but `.env.local`
+stays git-ignored regardless. Never put a server-only secret in a `VITE_*`
+variable; those ship in the client bundle.
 
-## 6. Environment variables
+## 6. Firebase Console setup checklist
 
-Copy `.env.example` to `.env.local` and fill in the values from your
-Firebase project's Web app config (Project settings → General → Your apps).
-None of these are secret — they identify the project, not grant access —
-but `.env.local` is still git-ignored to keep per-developer values out of
-version control. **Never** put a server-only secret in a `VITE_*` variable;
-those are bundled into the client JavaScript.
+Verified state as of the last inspection (`npx firebase projects:list`,
+`npx firebase firestore:databases:list`, `npx firebase database:instances:list`):
 
-## 7. Firebase Emulator Suite
+- ✅ Firestore database exists (Native mode), rules + indexes deployed
+- ✅ Storage bucket exists, rules deployed
+- ✅ Realtime Database instance exists — **rules not yet deployed** (see §9)
+- ❌ Cloud Functions — project is on the **Spark (free) plan**; deploying
+  functions requires upgrading to **Blaze (pay-as-you-go)** at
+  `console.firebase.google.com/project/<project-id>/usage/details`
+- ❓ Authentication providers (Google, Email/Password) — enable under
+  Authentication → Sign-in method if sign-in fails with "provider not
+  enabled" (the Authentication page shows this exact message when it happens)
 
-For local development without touching production data:
+## 7. Firebase Emulator Suite & rules tests
 
 ```bash
-npm install -g firebase-tools   # one-time
-firebase login
-firebase init                    # if you haven't run this yet; point at this repo
-firebase emulators:start
+npm run test:rules
 ```
 
-The emulator UI runs at `http://localhost:4000` by default (Auth 9099,
-Firestore 8080, Functions 5001, Storage 9199, Realtime DB 9000, Hosting
-5000 — see `firebase.json`). Point the app at the emulators during
-development by connecting the SDKs in `src/services/firebase.ts` with the
-`connect*Emulator` helpers if you want emulator-backed local dev (not
-wired by default, to keep the service module simple — add the four
-`connect*Emulator` calls there, gated by an env flag, if you need this).
+This one command is fully self-contained: it starts the Firestore, Storage,
+and Realtime Database emulators via `firebase emulators:exec`, runs every
+test under `tests/rules/`, and shuts the emulators back down automatically
+— it never leaves a long-running process behind. Current result: **49/49
+passing** across `tests/rules/firestore.rules.test.ts`,
+`tests/rules/storage.rules.test.ts`, and `tests/rules/database.rules.test.ts`.
 
-## 8. Configuring Authentication providers
+To run the app itself against the emulators (rather than the real project),
+add the four `connect*Emulator()` calls to `src/services/firebase.ts` behind
+an env flag — not wired up by default, to keep that module simple.
 
-In the Firebase Console: **Authentication → Sign-in method** → enable
-**Google** and **Email/Password**. For Google Sign-in on a deployed URL,
-add that URL to the OAuth authorized domains list.
+## 8. Live vs. fallback behavior, per page
 
-## 9. Deploying Firestore / Storage / Realtime Database rules
+Every page follows the same pattern: real Firebase read/write only happens
+when (a) the relevant product is configured **and** (b) the user is
+actually signed in with real Firebase Authentication. If Firebase is
+configured but the user hasn't signed in, the page shows an inline
+"Sign in on the Authentication page" prompt and **blocks the action** — it
+never silently falls back to the local simulation just because someone
+isn't signed in yet (that would misrepresent a "Live Firebase Integration"
+page as actually writing to Firebase when it isn't). The local
+simulation only activates when Firebase itself isn't configured at all.
+
+- **Authentication** — local fallback is a labelled demo-identity selector
+  (Student/Teacher/Admin), never real auth.
+- **Firestore / Storage / Realtime Database / Notifications** — local
+  fallback uses `localStorage` + `BroadcastChannel`. Note: `BroadcastChannel`
+  never delivers a message back to the tab that sent it, so each fallback
+  also notifies same-tab listeners directly — otherwise the tab you
+  actually clicked "Add note" in would never see its own new note.
+- **Remote Config** — local fallback is a manual A/B toggle that only
+  changes what the page displays, never the real parameter.
+- **Cloud Functions** — no fallback exists (a Cloud Function cannot be
+  honestly simulated client-side). The page always attempts a real write +
+  listen, with a 20-second honest timeout if nothing responds.
+
+## 9. Security Rules
+
+- `firestore.rules` — default-deny; one `match` block per Feature Lab
+  collection (`users`, `demoNotes`, `demoUploadMetadata`, `functionDemos`,
+  `functionDemoResults`, `demoNotifications`, `demoAiChats`), explicit
+  catch-all deny for everything else.
+- `storage.rules` — default-deny; only `feature-lab/{uid}/uploads/{fileName}`
+  is reachable, owner-only, content-type + size enforced server-side.
+- `database.rules.json` — `featureLab/reactions/firebase` requires auth for
+  read/write and validates the value is an integer in a sane range;
+  `presence/{uid}` is owner-write-only.
+- All three are covered by the automated tests in §7 (unauthenticated
+  denied, cross-user denied, field-level validation enforced).
+
+**Known gap:** the Realtime Database instance was created after
+`database.rules.json` was last deployed, so the rules currently live on the
+instance are unverified from this repo (could still be Firebase's own
+default). Deploy `database.rules.json` to close this gap — see §11.
+
+## 10. Deploying Firestore / Storage / Realtime Database rules
 
 ```bash
-firebase deploy --only firestore:rules,storage:rules,database
+npx firebase deploy --only firestore:rules,firestore:indexes   # Firestore — already deployed, re-run after any rules/index change
+npx firebase deploy --only storage                              # Storage — already deployed (note: no ":rules" suffix, see note below)
+npx firebase deploy --only database                             # Realtime Database — NOT yet deployed, do this once confirmed
 ```
 
-Review `firestore.rules` and `storage.rules` first — both files have
-inline comments explaining every access-control assumption, including the
-demo-mode simplifications called out in §14.
+Note: `firebase deploy --only storage:rules` fails with "Could not find
+rules for the following storage targets: rules" on current firebase-tools —
+the `:rules` suffix is parsed as a *named deploy target*, which this project
+doesn't define. Use plain `--only storage` instead.
 
-## 10. Deploying Functions
+## 11. Deploying Functions
 
 ```bash
-cd functions
-npm install
-cd ..
-firebase deploy --only functions
+cd functions && npm install && cd ..
+npx firebase deploy --only functions
 ```
 
-Two functions are implemented (2nd gen, TypeScript):
+Requires the Blaze plan (see §6). `functions/` builds clean and the
+`onFunctionDemoCreated` trigger is verified against the Functions +
+Firestore emulator (event → result document → notification document, all
+observed correctly).
 
-- **`onSubmissionCreated`** (`functions/src/submissions.ts`) — fires on
-  `submissions/{submissionId}` create, looks up the course's teacher, and
-  writes them a notification. Uses a deterministic notification document ID
-  so a retried event doesn't create a duplicate.
-- **`onAnnouncementCreated`** (`functions/src/announcements.ts`) — fires on
-  `announcements/{announcementId}` create, and batch-writes one unread
-  notification per enrolled student.
-
-Local testing: `cd functions && npm run serve` runs the Functions +
-Firestore + Auth emulators together.
-
-## 11. Deploying Hosting
+## 12. Deploying Hosting
 
 ```bash
 npm run build
-firebase deploy --only hosting
+npx firebase deploy --only hosting
 ```
 
-`firebase.json` already rewrites every route to `index.html` so React
-Router's client-side routes work on a hard refresh or direct link.
+`firebase.json` already rewrites every route to `index.html` for React
+Router.
 
-## 12. Configuring Remote Config
+## 13. Known limitations
 
-Create these four parameters in **Remote Config** (Firebase Console):
+- Admin access (where it appears in retired code) is a Firestore field, not
+  a custom claim — see comments at the top of `firestore.rules`.
+- Storage Rules' teacher-style cross-user read pattern (if ever reintroduced)
+  costs two extra Firestore reads per request — documented in `storage.rules`.
+- Crashlytics has no supported web SDK — `/error-monitoring` (once built)
+  must use the React Error Boundary + structured logger fallback and say so
+  explicitly.
+- Not every 2026 Firebase feature is GA — label each as configured,
+  optional, preview, or not configured rather than assuming availability.
 
-| Parameter | Default |
-|---|---|
-| `quiz_cta_variant` | `A` |
-| `ai_assistant_enabled` | `true` |
-| `maintenance_message` | *(empty string)* |
-| `max_upload_size_mb` | `10` |
+## 14. Presentation notes
 
-The app also ships these as in-code defaults (`src/services/remoteConfigService.ts`),
-so it degrades gracefully if Remote Config is unreachable. For the
-presentation, prepare a `quiz_cta_variant = "B"` value ahead of time so you
-can demonstrate a live refresh.
-
-## 13. Configuring AI Logic, App Check, Analytics, FCM, Crashlytics
-
-- **AI Logic** — enabled per-project in the Firebase Console; no extra
-  frontend secret required. `src/services/aiService.ts` fails safely (shows
-  the required fallback message) if the project isn't configured.
-- **App Check** — set `VITE_APP_CHECK_SITE_KEY` to a reCAPTCHA v3 site key.
-  In development, `VITE_DEMO_MODE=true` sets `FIREBASE_APPCHECK_DEBUG_TOKEN`
-  so you can register a debug token in the Console instead of solving a
-  captcha locally. **Do not enable App Check enforcement in the Console
-  until you've verified legitimate traffic works** — see
-  `src/services/appCheckService.ts`.
-- **Analytics** — enabled automatically once Firebase is configured;
-  `src/services/analyticsService.ts` checks `isSupported()` before logging
-  so it never throws in unsupported environments.
-- **FCM (optional)** — set `VITE_FCM_VAPID_KEY`, generate a Web Push
-  certificate in Console → Cloud Messaging, and replace the placeholder
-  config values in `public/firebase-messaging-sw.js` with your real Firebase
-  web config (safe to hardcode — not secrets). Push permission is requested
-  only when a user clicks "Enable push notifications" on `/notifications`.
-- **Crashlytics** — **not currently available for web** as a supported
-  Firebase SDK. Rather than fabricate an integration, StudyFlow AI ships the
-  documented fallback: a React `ErrorBoundary`
-  (`src/components/ErrorBoundary.tsx`) plus a structured error logger
-  (`src/services/errorReportingService.ts`). `/demo-error` triggers a
-  controlled test error so you can show the fallback UI live. If/when
-  Firebase ships a supported web Crashlytics SDK, swap
-  `CRASHLYTICS_WEB_SUPPORTED` to `true` and wire the real SDK into
-  `errorReportingService.ts` — every call site already goes through that
-  one module.
-
-## 14. Demo accounts and seeded data
-
-1. Create three Firebase Authentication users (or sign in once through the
-   app to create them) for Student, Teacher, and Admin.
-2. Set each user's Firestore role: `users/{uid}.role = "student" | "teacher" | "admin"`
-   (the app creates this document automatically on first sign-in, defaulted
-   to `"student"` — change `teacher`/`admin` manually in the Firestore
-   Console, or promote via the `scripts/seed.ts` script below).
-3. Edit `scripts/seed.ts`, replacing the three `REPLACE_WITH_*_UID`
-   constants with your real UIDs.
-4. Set `GOOGLE_APPLICATION_CREDENTIALS` to a service account key with
-   Firestore access, then run:
-
-   ```bash
-   npm run seed
-   ```
-
-This seeds two courses (`SE101`, `CLOUD201`), two assignments, one
-announcement, and a welcome notification for the student account — enough
-to run the full presentation script below without live data entry.
-
-For the **role switcher** (visible only when `VITE_DEMO_MODE=true`): it
-lets a presenter preview a different dashboard in the same browser tab. It
-is a UI-only simulation — it never changes real Firebase Authentication or
-Security Rules access; those still depend entirely on the signed-in user's
-real `role` field.
-
-## 15. Presentation script
-
-1. Open the deployed StudyFlow AI landing page.
-2. Sign in as the Student demo user.
-3. Show dashboard course data and the upcoming assignment.
-4. Open the AI Study Assistant; ask "Explain Firebase Cloud Functions in
-   simple English."
-5. Upload the prepared small PDF to an assignment.
-6. Switch to the Teacher account (second browser profile).
-7. Show the generated submission notification and the new submission.
-8. Create the prepared teacher announcement.
-9. Switch back to Student; show the in-app notification update.
-10. Open the Quiz page; show the Remote Config-selected CTA variant.
-11. Open the Admin Dashboard; show Firebase service status and demo metrics.
-12. Show `/about-firebase`.
-13. Return to slides for 2026 updates and conclusion.
-
-## 16. Backup plan
-
-Prepare before presenting:
-
-- A second browser profile (or Incognito window) signed in as Teacher.
-- A small test PDF under 1 MB.
-- Screenshots of: Firestore data, a Storage file, Function logs, Analytics
-  DebugView, and Remote Config parameters.
-- A 1–2 minute screen recording of the full successful flow.
-- A stable deployed URL tested on the presentation room's network.
-- A local dev fallback (`npm run dev`) with seeded data, in case the network
-  or deployed URL fails.
-
-## 17. Security warnings and known limitations
-
-- **Admin role is a Firestore field, not a custom claim.** For this demo,
-  `users/{uid}.role == "admin"` grants admin access in Firestore rules. A
-  user can never write their own `role` field (only an existing admin can
-  change someone else's), so this isn't wide open — but for a real
-  production deployment, replace it with a Firebase Authentication **custom
-  claim** (`request.auth.token.admin`), set server-side via the Admin SDK,
-  which a client can never modify at all. See the comments at the top of
-  `firestore.rules`.
-- **Storage Rules teacher access costs two extra Firestore reads per
-  request** (`firestore.get()` calls to resolve assignment → course →
-  teacher). This is documented in `storage.rules`; a production system
-  should mirror `teacherId` into the uploaded object's custom metadata
-  instead, or gate file access behind a callable Cloud Function.
-- **Crashlytics is not available for web** in the current Firebase SDK —
-  see §13 for the documented fallback and how to upgrade later.
-- **The demo role switcher never grants real access.** It's a client-side
-  UI simulation, gated behind `VITE_DEMO_MODE`, and must never be shipped
-  as `true` in a real production deployment.
-- **`aiChats` documents store only prompt + response** — no other user
-  data, keeping the AI feature's Firestore footprint minimal.
-- **Not every 2026 Firebase feature is GA.** This app and its presentation
-  script label each integration as configured, optional, preview, or not
-  configured — never assume general availability of an announced feature.
+- `slides.md` in the parent `topic_presentation/` directory is the Marp
+  slide deck for this presentation (`npx @marp-team/marp-cli slides.md --pdf`).
+- Each feature page's own "Interactive demo" section includes its own
+  two-tab presentation tip where relevant (Firestore notes, Realtime
+  Database reactions) — no separate backup script needed.
